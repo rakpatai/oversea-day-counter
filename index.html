@@ -21,6 +21,10 @@
     --over-block:#c98a2c;
     --tent-block:#4a4530;
     --tent-off:#2a2d38;
+    --tag-confirmed-bg:#1c3a2c;
+    --tag-confirmed-fg:#4fd18a;
+    --tag-tent-bg:#3d3316;
+    --tag-tent-fg:#e8b84b;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--board-bg);color:var(--ink);
@@ -35,7 +39,6 @@
   .clock{font-family:'Space Mono',monospace;font-size:13px;color:var(--ink-dim);text-align:right;}
   .clock b{color:var(--ink);}
 
-  /* Split flap board */
   .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
   .flip-card{background:var(--panel-bg);border:1px solid var(--line);border-radius:6px;
     padding:16px 10px 12px;text-align:center;position:relative;overflow:hidden;}
@@ -57,8 +60,8 @@
     padding:18px 20px;margin-bottom:20px;}
   .panel h2{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-dim);
     margin:0 0 14px;font-family:'Space Mono',monospace;}
+  .panel h2 .count{color:var(--split-amber);}
 
-  /* date slider */
   .date-row{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
   .date-row input[type=range]{flex:1;accent-color:var(--split-amber);}
   .date-readout{font-family:'Space Mono',monospace;font-size:16px;min-width:150px;text-align:right;color:var(--ink);}
@@ -67,23 +70,31 @@
     font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:inherit;}
   .quick-btns button:hover{color:var(--split-amber);border-color:var(--split-amber-dim);}
 
-  /* timeline */
   .timeline{display:grid;grid-template-columns:repeat(53,1fr);gap:2px;margin-top:16px;}
   .day-cell{aspect-ratio:1;border-radius:1px;background:var(--thai-block);}
   .day-cell.over{background:var(--over-block);}
   .day-cell.tent-on{background:var(--tent-block);outline:1px dashed var(--split-amber-dim);outline-offset:-1px;}
-  .day-cell.tent-off{background:var(--tent-off);outline:1px dashed #444a5c;outline-offset:-1px;opacity:.45;}
+  .day-cell.trip-off{background:var(--tent-off);outline:1px dashed #444a5c;outline-offset:-1px;opacity:.45;}
   .day-cell.today{outline:2px solid var(--split-amber);outline-offset:0;}
   .legend{display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--ink-dim);flex-wrap:wrap;}
   .legend span{display:inline-flex;align-items:center;gap:6px;}
   .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;}
 
-  /* trip toggles */
-  .trip{display:flex;justify-content:space-between;align-items:center;padding:12px 0;
+  .trip{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;
     border-bottom:1px solid var(--line);}
   .trip:last-child{border-bottom:none;}
-  .trip-info b{display:block;font-size:14px;color:var(--ink);}
-  .trip-info span{font-size:12px;color:var(--ink-dim);}
+  .trip.trip-disabled{opacity:.5;}
+  .trip-info{min-width:0;}
+  .trip-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .trip-info b{font-size:14.5px;color:var(--ink);}
+  .tag{font-size:10px;letter-spacing:.5px;padding:2px 7px;border-radius:10px;text-transform:uppercase;}
+  .tag.confirmed{background:var(--tag-confirmed-bg);color:var(--tag-confirmed-fg);}
+  .tag.tent{background:var(--tag-tent-bg);color:var(--tag-tent-fg);}
+  .trip-meta{font-size:12px;color:var(--ink-dim);margin-top:3px;}
+  .trip-meta b{color:var(--ink-dim);font-weight:600;}
+  .trip-days{font-family:'Space Mono',monospace;font-size:13px;color:var(--split-amber);white-space:nowrap;}
+  .trip-days small{display:block;font-size:10px;color:var(--ink-dim);font-family:'IBM Plex Sans Thai',sans-serif;text-align:right;}
+
   .switch{position:relative;width:46px;height:24px;flex:none;}
   .switch input{opacity:0;width:0;height:0;}
   .slider-toggle{position:absolute;inset:0;background:#3a3f52;border-radius:24px;cursor:pointer;transition:.2s;}
@@ -92,7 +103,6 @@
   input:checked + .slider-toggle{background:var(--split-amber-dim);}
   input:checked + .slider-toggle::before{transform:translateX(22px);background:var(--split-amber);}
 
-  /* what-if */
   .whatif-row{display:flex;align-items:center;gap:12px;}
   .whatif-row input[type=number]{width:80px;background:var(--panel-bg-2);border:1px solid var(--line);
     color:var(--ink);font-family:'Space Mono',monospace;font-size:15px;padding:6px 8px;border-radius:4px;}
@@ -105,6 +115,8 @@
     .flip-value{font-size:30px;}
     .timeline{grid-template-columns:repeat(27,1fr);}
     .date-readout{min-width:110px;font-size:13px;}
+    .trip{flex-wrap:wrap;}
+    .trip-days{order:3;width:100%;text-align:left;margin-top:4px;}
   }
 </style>
 </head>
@@ -123,7 +135,7 @@
     <div class="flip-card">
       <div class="flip-label">Days Abroad</div>
       <div class="flip-value" id="valTotal">0</div>
-      <div class="flip-unit">booked + enabled</div>
+      <div class="flip-unit">จากทริปที่เปิดใช้</div>
     </div>
     <div class="flip-card">
       <div class="flip-label">Target</div>
@@ -159,39 +171,20 @@
     <div class="timeline" id="timeline"></div>
     <div class="legend">
       <span><span class="swatch" style="background:var(--thai-block)"></span>อยู่ไทย</span>
-      <span><span class="swatch" style="background:var(--over-block)"></span>ต่างประเทศ (จองแล้ว)</span>
+      <span><span class="swatch" style="background:var(--over-block)"></span>ต่างประเทศ (ทริปเปิดอยู่)</span>
       <span><span class="swatch" style="background:var(--tent-block);outline:1px dashed var(--split-amber-dim)"></span>Tentative (เปิดใช้)</span>
-      <span><span class="swatch" style="background:var(--tent-off);outline:1px dashed #444a5c;opacity:.6"></span>Tentative (ปิด)</span>
+      <span><span class="swatch" style="background:var(--tent-off);outline:1px dashed #444a5c;opacity:.6"></span>ทริปที่ปิดอยู่</span>
       <span><span class="swatch" style="background:transparent;outline:2px solid var(--split-amber)"></span>วันที่เลือกอยู่</span>
     </div>
   </div>
 
   <div class="panel">
-    <h2>ทริปที่ยังไม่ยืนยัน (เปิด/ปิดเพื่อดูผล)</h2>
-    <div class="trip">
-      <div class="trip-info">
-        <b>ไปลาว / วันหยุด</b>
-        <span>24 ก.ค. – 2 ส.ค. 2026 · 10 วัน</span>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="tripA" checked>
-        <span class="slider-toggle"></span>
-      </label>
-    </div>
-    <div class="trip">
-      <div class="trip-info">
-        <b>กลับหลัง (ต่อทริปเรือ)</b>
-        <span>7 – 15 ธ.ค. 2026 · 9 วัน</span>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="tripB" checked>
-        <span class="slider-toggle"></span>
-      </label>
-    </div>
+    <h2>ทริปทั้งหมด <span class="count" id="tripCount"></span> — เปิด/ปิดแต่ละทริปเพื่อดูผลรวม</h2>
+    <div id="tripList"></div>
   </div>
 
   <div class="panel">
-    <h2>What-if: ลองเพิ่มทริปสมมติ</h2>
+    <h2>What-if: ลองเพิ่มวันสมมติ</h2>
     <div class="whatif-row">
       <label for="whatifDays">เพิ่มวันอยู่ต่างประเทศอีก</label>
       <input type="number" id="whatifDays" min="0" max="200" value="0">
@@ -199,15 +192,27 @@
     </div>
   </div>
 
-  <div class="foot-note">
-    Confirmed = 169 วัน (จากทริปที่จองแล้วทั้งหมดในปี) · Tentative = 19 วัน (2 ทริปด้านบน) · Require ปัจจุบัน (ทั้งสองทริปเปิด) = -3<br>
-    เลื่อนแถบวันที่เพื่อดูว่า ณ วันนั้นเหลือกี่วันในปี และยังต้องหาวันไปต่างประเทศเพิ่มอีกเท่าไหร่จึงจะถึงเป้า 185 วัน
-  </div>
+  <div class="foot-note" id="footNote"></div>
 
 </div>
 
 <script>
-const DAY_CODES = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTOOOOOOOOOOTTTOOOOOOTTTTTTTTTTTTTTOOOOOTTTTTOOOOOOOOTTTOOOOOOOTTTTTOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAAAAAAAATTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOBBBBBBBBBTTTTTTTTTTTTTTTT";
+const TRIPS = [
+  {"id":"shanghai","label":"เซี่ยงไฮ้","start":"2026-03-09","end":"2026-03-20","type":"confirmed","overDays":10,"totalDays":12},
+  {"id":"japan","label":"ญี่ปุ่น (with Eve)","start":"2026-03-22","end":"2026-03-29","type":"confirmed","overDays":6,"totalDays":8},
+  {"id":"xian","label":"ทัวร์ซีอาน (แม่)","start":"2026-04-11","end":"2026-04-17","type":"confirmed","overDays":5,"totalDays":7},
+  {"id":"vientiane","label":"เวียงจันทน์","start":"2026-04-21","end":"2026-04-30","type":"confirmed","overDays":8,"totalDays":10},
+  {"id":"kazakhstan","label":"คาซัคสถาน","start":"2026-05-02","end":"2026-05-10","type":"confirmed","overDays":7,"totalDays":9},
+  {"id":"italy","label":"อิตาลี","start":"2026-05-14","end":"2026-05-27","type":"confirmed","overDays":12,"totalDays":14},
+  {"id":"xinjiang","label":"ซินเจียง","start":"2026-06-13","end":"2026-06-27","type":"confirmed","overDays":13,"totalDays":15},
+  {"id":"laos","label":"ลาว / วันหยุด","start":"2026-07-24","end":"2026-08-02","type":"tent","overDays":10,"totalDays":10},
+  {"id":"boat","label":"ทริปเรือ (รวมวันเตรียมตัว 20 ส.ค.)","start":"2026-08-20","end":"2026-12-06","type":"confirmed","overDays":108,"totalDays":109},
+  {"id":"extend","label":"กลับหลัง (ต่อทริปเรือ)","start":"2026-12-07","end":"2026-12-15","type":"tent","overDays":9,"totalDays":9}
+];
+
+const TRIPIDS = ".,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,shanghai,.,japan,japan,japan,japan,japan,japan,japan,japan,.,.,.,.,.,.,.,.,.,.,.,.,xian,xian,xian,xian,xian,xian,xian,.,.,.,vientiane,vientiane,vientiane,vientiane,vientiane,vientiane,vientiane,vientiane,vientiane,vientiane,.,kazakhstan,kazakhstan,kazakhstan,kazakhstan,kazakhstan,kazakhstan,kazakhstan,kazakhstan,kazakhstan,.,.,.,italy,italy,italy,italy,italy,italy,italy,italy,italy,italy,italy,italy,italy,italy,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,xinjiang,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,laos,laos,laos,laos,laos,laos,laos,laos,laos,laos,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,boat,extend,extend,extend,extend,extend,extend,extend,extend,extend,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.".split(',');
+
+const FLAGS = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTOOOOOOOOOOTTTOOOOOOTTTTTTTTTTTTTTOOOOOTTTTTOOOOOOOOTTTOOOOOOOTTTTTOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAAAAAAAATTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOAAAAAAAAATTTTTTTTTTTTTTTT";
 
 const YEAR = 2026;
 const START = new Date(Date.UTC(YEAR,0,1));
@@ -222,6 +227,13 @@ function dateForIndex(i){
 function fmtDate(d){
   return d.getUTCDate() + ' ' + THAI_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
 }
+function fmtShort(dateStr){
+  const d = new Date(dateStr+'T00:00:00Z');
+  return d.getUTCDate() + ' ' + THAI_MONTHS[d.getUTCMonth()];
+}
+function fmtRange(t){
+  return fmtShort(t.start) + ' – ' + fmtShort(t.end);
+}
 function indexForRealToday(){
   const now = new Date();
   const thisYear = new Date(Date.UTC(YEAR, now.getMonth(), now.getDate()));
@@ -231,19 +243,42 @@ function indexForRealToday(){
   return idx;
 }
 
-const CONFIRMED_OVER = (DAY_CODES.match(/O/g)||[]).length; // 169
-const TENT_A = (DAY_CODES.match(/A/g)||[]).length; // 10
-const TENT_B = (DAY_CODES.match(/B/g)||[]).length; // 9
+const tripState = {};
+TRIPS.forEach(t => tripState[t.id] = true);
 
-const slider = document.getElementById('dateSlider');
-const dateReadout = document.getElementById('dateReadout');
-const clockDate = document.getElementById('clockDate');
-const tripA = document.getElementById('tripA');
-const tripB = document.getElementById('tripB');
-const whatif = document.getElementById('whatifDays');
+document.getElementById('tripCount').textContent = '(' + TRIPS.length + ')';
+
+const CONFIRMED_TOTAL = TRIPS.filter(t=>t.type==='confirmed').reduce((a,t)=>a+t.overDays,0);
+const TENT_TOTAL = TRIPS.filter(t=>t.type==='tent').reduce((a,t)=>a+t.overDays,0);
+document.getElementById('footNote').innerHTML =
+  `Confirmed ทั้งหมด = ${CONFIRMED_TOTAL} วัน (จาก ${TRIPS.filter(t=>t.type==='confirmed').length} ทริป) · Tentative = ${TENT_TOTAL} วัน (จาก ${TRIPS.filter(t=>t.type==='tent').length} ทริป)<br>`+
+  `เปิด/ปิดสวิตช์แต่ละทริป หรือเลื่อนแถบวันที่ เพื่อดูว่ายังต้องหาวันไปต่างประเทศเพิ่มอีกเท่าไหร่จึงจะถึงเป้า ${TARGET} วัน`;
+
+// build trip list UI
+const tripListEl = document.getElementById('tripList');
+TRIPS.forEach(t => {
+  const row = document.createElement('div');
+  row.className = 'trip';
+  row.id = 'trip-row-' + t.id;
+  row.innerHTML = `
+    <div class="trip-info">
+      <div class="trip-name-row">
+        <b>${t.label}</b>
+        <span class="tag ${t.type==='confirmed'?'confirmed':'tent'}">${t.type==='confirmed'?'ยืนยันแล้ว':'Tentative'}</span>
+      </div>
+      <div class="trip-meta">${fmtRange(t)} · ${t.totalDays} วันรวม</div>
+    </div>
+    <div class="trip-days">${t.overDays} วัน<small>ต่างประเทศ</small></div>
+    <label class="switch">
+      <input type="checkbox" id="chk-${t.id}" ${tripState[t.id] ? 'checked' : ''}>
+      <span class="slider-toggle"></span>
+    </label>
+  `;
+  tripListEl.appendChild(row);
+});
+
+// build timeline cells
 const timelineEl = document.getElementById('timeline');
-
-// build timeline cells once
 const cells = [];
 for(let i=0;i<365;i++){
   const div = document.createElement('div');
@@ -252,17 +287,20 @@ for(let i=0;i<365;i++){
   cells.push(div);
 }
 
-function flipTo(el, value){
-  el.textContent = value;
-}
+const slider = document.getElementById('dateSlider');
+const dateReadout = document.getElementById('dateReadout');
+const clockDate = document.getElementById('clockDate');
+const whatif = document.getElementById('whatifDays');
+
+function flipTo(el, value){ el.textContent = value; }
 
 function render(){
   const asOfIdx = parseInt(slider.value,10);
-  const onA = tripA.checked;
-  const onB = tripB.checked;
   const extra = Math.max(0, parseInt(whatif.value||'0',10));
 
-  const total = CONFIRMED_OVER + (onA?TENT_A:0) + (onB?TENT_B:0) + extra;
+  let total = extra;
+  TRIPS.forEach(t => { if(tripState[t.id]) total += t.overDays; });
+
   const need = Math.max(0, TARGET - total);
   const daysLeft = 364 - asOfIdx;
 
@@ -299,20 +337,39 @@ function render(){
 
   // timeline paint
   for(let i=0;i<365;i++){
-    const code = DAY_CODES[i];
+    const tripId = TRIPIDS[i];
+    const flag = FLAGS[i];
     const c = cells[i];
-    c.classList.remove('over','tent-on','tent-off','today');
-    if(code==='O') c.classList.add('over');
-    else if(code==='A') c.classList.add(onA?'tent-on':'tent-off');
-    else if(code==='B') c.classList.add(onB?'tent-on':'tent-off');
+    c.classList.remove('over','tent-on','trip-off','today');
+    if(tripId !== '.'){
+      const t = TRIPS.find(x=>x.id===tripId);
+      const on = tripState[tripId];
+      if(flag === 'O' || flag === 'A'){
+        if(on){
+          c.classList.add(t.type==='tent' ? 'tent-on' : 'over');
+        } else {
+          c.classList.add('trip-off');
+        }
+      }
+    }
     if(i===asOfIdx) c.classList.add('today');
   }
+
+  // dim disabled trip rows
+  TRIPS.forEach(t=>{
+    const row = document.getElementById('trip-row-'+t.id);
+    row.classList.toggle('trip-disabled', !tripState[t.id]);
+  });
 }
 
 slider.addEventListener('input', render);
-tripA.addEventListener('change', render);
-tripB.addEventListener('change', render);
 whatif.addEventListener('input', render);
+TRIPS.forEach(t=>{
+  document.getElementById('chk-'+t.id).addEventListener('change', (e)=>{
+    tripState[t.id] = e.target.checked;
+    render();
+  });
+});
 
 document.getElementById('btnToday').addEventListener('click',()=>{ slider.value = indexForRealToday(); render(); });
 document.getElementById('btnJan1').addEventListener('click',()=>{ slider.value = 0; render(); });
