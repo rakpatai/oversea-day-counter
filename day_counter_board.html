@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Day Counter Board — วันอยู่ต่างประเทศ 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board-bg:#12141c;
+    --panel-bg:#1b1e29;
+    --panel-bg-2:#20232f;
+    --split-amber:#ffb238;
+    --split-amber-dim:#8a6420;
+    --ink:#e9ebf1;
+    --ink-dim:#8891a3;
+    --line:#2c3040;
+    --good:#3ddc97;
+    --bad:#ff5d6c;
+    --thai-block:#3a4056;
+    --over-block:#c98a2c;
+    --tent-block:#4a4530;
+    --tent-off:#2a2d38;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--board-bg);color:var(--ink);
+    font-family:'IBM Plex Sans Thai','Space Mono',monospace;}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px;}
+
+  .masthead{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--line);padding-bottom:14px;margin-bottom:22px;}
+  .masthead h1{font-family:'Space Mono',monospace;font-size:20px;letter-spacing:2px;
+    margin:0;color:var(--split-amber);text-transform:uppercase;}
+  .masthead .sub{font-size:12px;color:var(--ink-dim);margin-top:4px;}
+  .clock{font-family:'Space Mono',monospace;font-size:13px;color:var(--ink-dim);text-align:right;}
+  .clock b{color:var(--ink);}
+
+  /* Split flap board */
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
+  .flip-card{background:var(--panel-bg);border:1px solid var(--line);border-radius:6px;
+    padding:16px 10px 12px;text-align:center;position:relative;overflow:hidden;}
+  .flip-card::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;
+    background:rgba(0,0,0,.45);}
+  .flip-label{font-size:10.5px;letter-spacing:1.5px;color:var(--ink-dim);text-transform:uppercase;margin-bottom:8px;}
+  .flip-value{font-family:'Space Mono',monospace;font-size:40px;font-weight:700;color:var(--split-amber);
+    line-height:1;transition:color .2s;}
+  .flip-value.good{color:var(--good);}
+  .flip-value.bad{color:var(--bad);}
+  .flip-unit{font-size:10px;color:var(--ink-dim);margin-top:6px;letter-spacing:1px;}
+
+  .status-line{text-align:center;font-size:14px;padding:10px 14px;border-radius:6px;
+    margin-bottom:26px;border:1px solid var(--line);background:var(--panel-bg);}
+  .status-line.good{color:var(--good);border-color:#1e5a41;background:#132420;}
+  .status-line.bad{color:var(--bad);border-color:#5a1e26;background:#241315;}
+
+  .panel{background:var(--panel-bg);border:1px solid var(--line);border-radius:8px;
+    padding:18px 20px;margin-bottom:20px;}
+  .panel h2{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-dim);
+    margin:0 0 14px;font-family:'Space Mono',monospace;}
+
+  /* date slider */
+  .date-row{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .date-row input[type=range]{flex:1;accent-color:var(--split-amber);}
+  .date-readout{font-family:'Space Mono',monospace;font-size:16px;min-width:150px;text-align:right;color:var(--ink);}
+  .quick-btns{display:flex;gap:8px;margin-top:10px;}
+  .quick-btns button{background:var(--panel-bg-2);border:1px solid var(--line);color:var(--ink-dim);
+    font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:inherit;}
+  .quick-btns button:hover{color:var(--split-amber);border-color:var(--split-amber-dim);}
+
+  /* timeline */
+  .timeline{display:grid;grid-template-columns:repeat(53,1fr);gap:2px;margin-top:16px;}
+  .day-cell{aspect-ratio:1;border-radius:1px;background:var(--thai-block);}
+  .day-cell.over{background:var(--over-block);}
+  .day-cell.tent-on{background:var(--tent-block);outline:1px dashed var(--split-amber-dim);outline-offset:-1px;}
+  .day-cell.tent-off{background:var(--tent-off);outline:1px dashed #444a5c;outline-offset:-1px;opacity:.45;}
+  .day-cell.today{outline:2px solid var(--split-amber);outline-offset:0;}
+  .legend{display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--ink-dim);flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;}
+
+  /* trip toggles */
+  .trip{display:flex;justify-content:space-between;align-items:center;padding:12px 0;
+    border-bottom:1px solid var(--line);}
+  .trip:last-child{border-bottom:none;}
+  .trip-info b{display:block;font-size:14px;color:var(--ink);}
+  .trip-info span{font-size:12px;color:var(--ink-dim);}
+  .switch{position:relative;width:46px;height:24px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider-toggle{position:absolute;inset:0;background:#3a3f52;border-radius:24px;cursor:pointer;transition:.2s;}
+  .slider-toggle::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;
+    background:#c8cdd9;border-radius:50%;transition:.2s;}
+  input:checked + .slider-toggle{background:var(--split-amber-dim);}
+  input:checked + .slider-toggle::before{transform:translateX(22px);background:var(--split-amber);}
+
+  /* what-if */
+  .whatif-row{display:flex;align-items:center;gap:12px;}
+  .whatif-row input[type=number]{width:80px;background:var(--panel-bg-2);border:1px solid var(--line);
+    color:var(--ink);font-family:'Space Mono',monospace;font-size:15px;padding:6px 8px;border-radius:4px;}
+  .whatif-row label{font-size:13px;color:var(--ink-dim);}
+
+  .foot-note{font-size:11px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.6;}
+
+  @media (max-width:640px){
+    .board{grid-template-columns:repeat(2,1fr);}
+    .flip-value{font-size:30px;}
+    .timeline{grid-template-columns:repeat(27,1fr);}
+    .date-readout{min-width:110px;font-size:13px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>Day Counter — 2026</h1>
+      <div class="sub">ตัวนับวันอยู่ต่างประเทศ · เป้าหมาย 185 วัน</div>
+    </div>
+    <div class="clock">จำลองวันที่ปัจจุบัน<br><b id="clockDate">–</b></div>
+  </div>
+
+  <div class="board">
+    <div class="flip-card">
+      <div class="flip-label">Days Abroad</div>
+      <div class="flip-value" id="valTotal">0</div>
+      <div class="flip-unit">booked + enabled</div>
+    </div>
+    <div class="flip-card">
+      <div class="flip-label">Target</div>
+      <div class="flip-value" id="valTarget">185</div>
+      <div class="flip-unit">days / year</div>
+    </div>
+    <div class="flip-card">
+      <div class="flip-label">Still Needed</div>
+      <div class="flip-value" id="valNeed">0</div>
+      <div class="flip-unit">more days abroad</div>
+    </div>
+    <div class="flip-card">
+      <div class="flip-label">Days Left in Year</div>
+      <div class="flip-value" id="valLeft">0</div>
+      <div class="flip-unit">until 31 ธ.ค.</div>
+    </div>
+  </div>
+
+  <div class="status-line" id="statusLine">–</div>
+
+  <div class="panel">
+    <h2>เลื่อนดูวันที่ในปี 2026</h2>
+    <div class="date-row">
+      <input type="range" id="dateSlider" min="0" max="364" value="0">
+      <div class="date-readout" id="dateReadout">–</div>
+    </div>
+    <div class="quick-btns">
+      <button id="btnToday">วันนี้จริง</button>
+      <button id="btnJan1">1 ม.ค.</button>
+      <button id="btnDec31">31 ธ.ค.</button>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--thai-block)"></span>อยู่ไทย</span>
+      <span><span class="swatch" style="background:var(--over-block)"></span>ต่างประเทศ (จองแล้ว)</span>
+      <span><span class="swatch" style="background:var(--tent-block);outline:1px dashed var(--split-amber-dim)"></span>Tentative (เปิดใช้)</span>
+      <span><span class="swatch" style="background:var(--tent-off);outline:1px dashed #444a5c;opacity:.6"></span>Tentative (ปิด)</span>
+      <span><span class="swatch" style="background:transparent;outline:2px solid var(--split-amber)"></span>วันที่เลือกอยู่</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>ทริปที่ยังไม่ยืนยัน (เปิด/ปิดเพื่อดูผล)</h2>
+    <div class="trip">
+      <div class="trip-info">
+        <b>ไปลาว / วันหยุด</b>
+        <span>24 ก.ค. – 2 ส.ค. 2026 · 10 วัน</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tripA" checked>
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+    <div class="trip">
+      <div class="trip-info">
+        <b>กลับหลัง (ต่อทริปเรือ)</b>
+        <span>7 – 15 ธ.ค. 2026 · 9 วัน</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tripB" checked>
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>What-if: ลองเพิ่มทริปสมมติ</h2>
+    <div class="whatif-row">
+      <label for="whatifDays">เพิ่มวันอยู่ต่างประเทศอีก</label>
+      <input type="number" id="whatifDays" min="0" max="200" value="0">
+      <label>วัน</label>
+    </div>
+  </div>
+
+  <div class="foot-note">
+    Confirmed = 169 วัน (จากทริปที่จองแล้วทั้งหมดในปี) · Tentative = 19 วัน (2 ทริปด้านบน) · Require ปัจจุบัน (ทั้งสองทริปเปิด) = -3<br>
+    เลื่อนแถบวันที่เพื่อดูว่า ณ วันนั้นเหลือกี่วันในปี และยังต้องหาวันไปต่างประเทศเพิ่มอีกเท่าไหร่จึงจะถึงเป้า 185 วัน
+  </div>
+
+</div>
+
+<script>
+const DAY_CODES = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTOOOOOOOOOOTTTOOOOOOTTTTTTTTTTTTTTOOOOOTTTTTOOOOOOOOTTTOOOOOOOTTTTTOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAAAAAAAATTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOBBBBBBBBBTTTTTTTTTTTTTTTT";
+
+const YEAR = 2026;
+const START = new Date(Date.UTC(YEAR,0,1));
+const TARGET = 185;
+const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function dateForIndex(i){
+  const d = new Date(START.getTime());
+  d.setUTCDate(d.getUTCDate()+i);
+  return d;
+}
+function fmtDate(d){
+  return d.getUTCDate() + ' ' + THAI_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+function indexForRealToday(){
+  const now = new Date();
+  const thisYear = new Date(Date.UTC(YEAR, now.getMonth(), now.getDate()));
+  let idx = Math.round((thisYear - START)/86400000);
+  if(idx<0) idx=0;
+  if(idx>364) idx=364;
+  return idx;
+}
+
+const CONFIRMED_OVER = (DAY_CODES.match(/O/g)||[]).length; // 169
+const TENT_A = (DAY_CODES.match(/A/g)||[]).length; // 10
+const TENT_B = (DAY_CODES.match(/B/g)||[]).length; // 9
+
+const slider = document.getElementById('dateSlider');
+const dateReadout = document.getElementById('dateReadout');
+const clockDate = document.getElementById('clockDate');
+const tripA = document.getElementById('tripA');
+const tripB = document.getElementById('tripB');
+const whatif = document.getElementById('whatifDays');
+const timelineEl = document.getElementById('timeline');
+
+// build timeline cells once
+const cells = [];
+for(let i=0;i<365;i++){
+  const div = document.createElement('div');
+  div.className = 'day-cell';
+  timelineEl.appendChild(div);
+  cells.push(div);
+}
+
+function flipTo(el, value){
+  el.textContent = value;
+}
+
+function render(){
+  const asOfIdx = parseInt(slider.value,10);
+  const onA = tripA.checked;
+  const onB = tripB.checked;
+  const extra = Math.max(0, parseInt(whatif.value||'0',10));
+
+  const total = CONFIRMED_OVER + (onA?TENT_A:0) + (onB?TENT_B:0) + extra;
+  const need = Math.max(0, TARGET - total);
+  const daysLeft = 364 - asOfIdx;
+
+  const asOfDate = dateForIndex(asOfIdx);
+  dateReadout.textContent = fmtDate(asOfDate);
+  clockDate.textContent = fmtDate(asOfDate);
+
+  flipTo(document.getElementById('valTotal'), total);
+  flipTo(document.getElementById('valTarget'), TARGET);
+  flipTo(document.getElementById('valNeed'), need);
+  flipTo(document.getElementById('valLeft'), daysLeft);
+
+  const needEl = document.getElementById('valNeed');
+  const totalEl = document.getElementById('valTotal');
+  needEl.classList.remove('good','bad');
+  totalEl.classList.remove('good','bad');
+  if(need===0){ needEl.classList.add('good'); totalEl.classList.add('good'); }
+  else if(need > daysLeft){ needEl.classList.add('bad'); }
+
+  const statusEl = document.getElementById('statusLine');
+  statusEl.classList.remove('good','bad');
+  if(need===0){
+    const surplus = total - TARGET;
+    statusEl.textContent = surplus>0
+      ? `ถึงเป้าหมายแล้ว — เกินเป้า ${surplus} วัน ✅`
+      : `ถึงเป้าหมายพอดี ${TARGET} วัน ✅`;
+    statusEl.classList.add('good');
+  } else if(need > daysLeft){
+    statusEl.textContent = `เหลือเวลาไม่พอ — ต้องการอีก ${need} วัน แต่เหลือแค่ ${daysLeft} วันในปีนี้ ⚠️`;
+    statusEl.classList.add('bad');
+  } else {
+    statusEl.textContent = `ยังขาดอีก ${need} วัน จากที่เหลือ ${daysLeft} วันในปีนี้ — ยังพอมีเวลาหาทริปเพิ่ม`;
+  }
+
+  // timeline paint
+  for(let i=0;i<365;i++){
+    const code = DAY_CODES[i];
+    const c = cells[i];
+    c.classList.remove('over','tent-on','tent-off','today');
+    if(code==='O') c.classList.add('over');
+    else if(code==='A') c.classList.add(onA?'tent-on':'tent-off');
+    else if(code==='B') c.classList.add(onB?'tent-on':'tent-off');
+    if(i===asOfIdx) c.classList.add('today');
+  }
+}
+
+slider.addEventListener('input', render);
+tripA.addEventListener('change', render);
+tripB.addEventListener('change', render);
+whatif.addEventListener('input', render);
+
+document.getElementById('btnToday').addEventListener('click',()=>{ slider.value = indexForRealToday(); render(); });
+document.getElementById('btnJan1').addEventListener('click',()=>{ slider.value = 0; render(); });
+document.getElementById('btnDec31').addEventListener('click',()=>{ slider.value = 364; render(); });
+
+slider.value = indexForRealToday();
+render();
+</script>
+</body>
+</html>
